@@ -17,10 +17,12 @@ class Preset:
         """
         if data is not None:
             self.name = data["name"] if "name" in data else "fallback"
+            self.uuid = data["uuid"] if "uuid" in data else "-1"
             self.config = ConfigurationBlock(data["config"])
             self.abstract = "abstract" in data and bool(data["abstract"])
         else:
             self.name = ""
+            self.uuid = ""
             self.config = None
             self.abstract = False
         self.prefix = ""
@@ -198,6 +200,7 @@ class Preset:
         preset.prefix = self.prefix + prefix + "/"
         preset.file = self.file
         preset.try_number = self.try_number
+        preset.uuid = self.uuid
         return preset
 
     def get_experiment_name(self):

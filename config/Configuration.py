@@ -19,6 +19,7 @@ class Configuration:
 
         self.presets = []
         self.presets_by_name = {}
+        self.presets_by_uuid = {}
         self._json_by_name = {}
         self._ordered_names = []
         self.default_preset_name = default_preset_name
@@ -73,6 +74,7 @@ class Configuration:
 
             preset = Preset(preset_data, preset_base, self._json_by_name[preset_name]["file"])
             self.presets_by_name[preset.name] = preset
+            self.presets_by_uuid[preset.uuid] = preset
 
         return self.presets_by_name[preset_name]
 
