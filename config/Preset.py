@@ -1,4 +1,5 @@
 import logging
+import uuid
 
 from config.ConfigurationBlock import ConfigurationBlock, NotFoundError
 
@@ -29,9 +30,12 @@ class Preset:
         self.try_number = 0
 
     def set_data(self, new_data):
+        if "uuid" not in new_data:
+            new_data["uuid"] = str(uuid.uuid4())
+
         self.data = new_data
         self.name = new_data["name"] if "name" in new_data else "fallback"
-        self.uuid = new_data["uuid"] if "uuid" in new_data else "-1"
+        self.uuid = new_data["uuid"]
         self.config = ConfigurationBlock(new_data["config"])
         self.abstract = "abstract" in new_data and bool(new_data["abstract"])
 

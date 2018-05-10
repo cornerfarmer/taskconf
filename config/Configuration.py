@@ -45,6 +45,8 @@ class Configuration:
             self._load_preset_with_name(name)
             self.presets.append(self.presets_by_name[name])
 
+        self.save()
+
         print("Loaded " + str(len(self.presets)) + " presets.")
 
     def _load_preset_with_name(self, preset_name, children_presets=[]):
@@ -73,11 +75,15 @@ class Configuration:
             else:
                 preset_base = None
 
-            preset = Preset(preset_data, preset_base, self._json_by_name[preset_name]["file"])
-            self.presets_by_name[preset.name] = preset
-            self.presets_by_uuid[preset.uuid] = preset
+            self.create_preset(preset_data, preset_base, self._json_by_name[preset_name]["file"])
 
         return self.presets_by_name[preset_name]
+
+    def create_preset(self, preset_data, preset_base, file):
+        preset = Preset(preset_data, preset_base, file)
+        self.presets_by_name[preset.name] = preset
+        self.presets_by_uuid[preset.uuid] = preset
+        return preset
 
     def find_presets_by_names(self, names):
         """Returns all presets with the given names.
@@ -160,3 +166,15 @@ class Configuration:
                 presets.append(preset)
 
         self.save_to_file(filename, presets)
+
+    def add_preset(self, preset_data):
+        if "base" in preset_data:
+            preset_base = self.presets_by_name[preset_data]
+        else:
+            preset_base = self.presets_by_name[self.default_preset_name]
+
+        preset = self.create_preset(preset_data, preset_base, self.presets[-1].file)
+        self.presets.append(preset)
+        self.save()
+
+        return preset
