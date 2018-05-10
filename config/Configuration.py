@@ -17,6 +17,7 @@ class Configuration:
         if config_path is None:
             config_path = "config"
 
+        self.config_path = config_path
         self.presets = []
         self.presets_by_name = {}
         self.presets_by_uuid = {}
@@ -137,3 +138,25 @@ class Configuration:
             presets = self.find_presets_by_names(names) + self.find_presets_by_files(files)
 
         return presets
+
+    def save_to_file(self, filename, presets):
+        data = []
+        for preset in presets:
+            data.append(preset.data)
+
+        if len(data) > 0 and len(filename) > 0:
+            with open(self.config_path + "/" + filename, 'w') as data_file:
+                json.dump(data, data_file, indent=2, separators=(',', ': '))
+
+    def save(self):
+        filename = ""
+        presets = []
+        for preset in self.presets:
+            if filename != preset.file:
+                self.save_to_file(filename, presets)
+                presets = [preset]
+                filename = preset.file
+            else:
+                presets.append(preset)
+
+        self.save_to_file(filename, presets)

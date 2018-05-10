@@ -16,11 +16,9 @@ class Preset:
             file(str): The filename which contained the preset.
         """
         if data is not None:
-            self.name = data["name"] if "name" in data else "fallback"
-            self.uuid = data["uuid"] if "uuid" in data else "-1"
-            self.config = ConfigurationBlock(data["config"])
-            self.abstract = "abstract" in data and bool(data["abstract"])
+            self.set_data(data)
         else:
+            self.data = {}
             self.name = ""
             self.uuid = ""
             self.config = None
@@ -29,6 +27,13 @@ class Preset:
         self.base_preset = base_preset
         self.file = file
         self.try_number = 0
+
+    def set_data(self, new_data):
+        self.data = new_data
+        self.name = new_data["name"] if "name" in new_data else "fallback"
+        self.uuid = new_data["uuid"] if "uuid" in new_data else "-1"
+        self.config = ConfigurationBlock(new_data["config"])
+        self.abstract = "abstract" in new_data and bool(new_data["abstract"])
 
     def _get_value(self, name, value_type):
         """Returns the configuration with the given name and the given type.
