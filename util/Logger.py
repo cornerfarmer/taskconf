@@ -1,14 +1,14 @@
 import logging
 import os
+from pathlib import Path
 
 class Logger:
 
-    def __init__(self, results_path=None, experiment_name=None, file_name=None, logger=None, module_name="general", replace=False):
+    def __init__(self, log_path=None, file_name=None, logger=None, module_name="general", replace=False):
         """ Creates a logger.
 
         Args:
-            results_path(str): The path where to write logs.
-            experiment_name(str): The name of the current experiment.
+            log_path(Path): The path where to write logs.
             file_name(str): The name of the logfile.
             logger(logging.Logger): An existing logger which should be used instead of creating one.
             module_name(str): The name of the module which uses this logger.
@@ -17,16 +17,14 @@ class Logger:
         self.module_name = module_name
 
         if logger is None:
-            self.logger = logging.getLogger(experiment_name)
+            self.logger = logging.getLogger(str(log_path))
             self.logger.setLevel(logging.DEBUG)
 
-            directory = results_path + experiment_name + "/"
-            if not os.path.exists(directory):
-                os.makedirs(directory)
+            log_path.mkdir(parents=True, exist_ok=True)
 
-            path = directory + file_name + ".log"
-            if replace and os.path.isfile(path):
-                os.remove(path)
+            path = log_path / Path(file_name + ".log")
+            if replace and path.exists():
+                path.unlink()
 
             fh = logging.FileHandler(path)
             fh.setLevel(logging.DEBUG)
@@ -37,11 +35,11 @@ class Logger:
             self.logger.addHandler(fh)
 
             if not replace:
-                self.log(logging.INFO, "-" * 100)
+                self.log("-" * 100)
         else:
             self.logger = logger
 
-    def log(self, level, message):
+    def log(self, message, level=logging.INFO):
         """ Logs the given message.
 
         Args:
@@ -76,7 +74,7 @@ class Logger:
             text = ""
             for cell in row:
                 text += "{:11s}".format(cell) + "|"
-            self.log(level, text)
+            self.log(text, level)
 
     def get_with_module(self, module_name):
         """ Clones this logger and sets a new module name.

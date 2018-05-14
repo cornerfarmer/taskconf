@@ -5,8 +5,6 @@ from config.ConfigurationBlock import ConfigurationBlock, NotFoundError
 
 
 class Preset:
-    _printed_settings = set()
-    logger = None
 
     def __init__(self, data=None, base_preset=None, file=None):
         """Creates a new preset.
@@ -28,6 +26,8 @@ class Preset:
         self.base_preset = base_preset
         self.file = file
         self.try_number = 0
+        self._printed_settings = set()
+        self.logger = None
 
     def set_data(self, new_data):
         if "uuid" not in new_data:
@@ -93,9 +93,9 @@ class Preset:
             else:
                 raise
 
-        if name not in Preset._printed_settings and Preset.logger is not None:
-            Preset.logger.log(logging.INFO, "Using " + name + " = " + str(value))
-            Preset._printed_settings.add(name)
+        if name not in self._printed_settings and self.logger is not None:
+            self.logger.log("Using " + name + " = " + str(value))
+            self._printed_settings.add(name)
 
         return value
 
@@ -203,10 +203,15 @@ class Preset:
         Returns:
             Preset: The new preset with the requested prefix.
         """
+        preset = self.clone()
+        preset.prefix = self.prefix + prefix + "/"
+        return preset
+
+    def clone(self):
         preset = Preset(base_preset=self.base_preset)
         preset.name = self.name
         preset.config = self.config
-        preset.prefix = self.prefix + prefix + "/"
+        preset.prefix = self.prefix
         preset.file = self.file
         preset.try_number = self.try_number
         preset.uuid = self.uuid
@@ -220,8 +225,7 @@ class Preset:
         """
         return self.name + " (try " + str(self.try_number) + ")"
 
-    @staticmethod
-    def clear_printed_settings(new_logger):
+    def set_logger(self, new_logger):
         """Cleans the list of all already printed settings.
 
         After calling this, the configuration log will start from scratch again.
@@ -229,5 +233,5 @@ class Preset:
         Args:
             new_logger: A new logger which should be used for future logging.
         """
-        Preset._printed_settings.clear()
-        Preset.logger = new_logger
+        self._printed_settings.clear()
+        self.logger = new_logger
