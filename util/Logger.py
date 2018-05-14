@@ -35,7 +35,7 @@ class Logger:
             self.logger.addHandler(fh)
 
             if not replace:
-                self.log("-" * 100)
+                self.log("-" * 50)
         else:
             self.logger = logger
 
