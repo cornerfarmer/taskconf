@@ -14,6 +14,13 @@ class Preset:
             base_preset(Preset): The base preset object for this preset.
             file(str): The filename which contained the preset.
         """
+        self.prefix = ""
+        self.base_preset = base_preset
+        self.file = file
+        self.try_number = 0
+        self._printed_settings = set()
+        self.logger = None
+
         if data is not None:
             self.set_data(data)
         else:
@@ -22,22 +29,32 @@ class Preset:
             self.uuid = ""
             self.config = None
             self.abstract = False
-        self.prefix = ""
-        self.base_preset = base_preset
-        self.file = file
-        self.try_number = 0
-        self._printed_settings = set()
-        self.logger = None
 
     def set_data(self, new_data):
         if "uuid" not in new_data:
             new_data["uuid"] = str(uuid.uuid4())
 
         self.data = new_data
-        self.name = new_data["name"] if "name" in new_data else "fallback"
-        self.uuid = new_data["uuid"]
         self.config = ConfigurationBlock(new_data["config"])
+        self.name = new_data["name"] if "name" in new_data else self._generate_name()
+        self.uuid = new_data["uuid"]
         self.abstract = "abstract" in new_data and bool(new_data["abstract"])
+
+    def _generate_name(self):
+        name = ""
+        if self.base_preset is not None and self.base_preset.base_preset is not None:
+            name += self.base_preset.name + ": "
+        flattened_data = self.config.flatten()
+        for key in flattened_data:
+            name += key + ": " + str(flattened_data[key]) + " - "
+
+        if name.endswith(" - "):
+            name = name[:-3]
+        elif name is "":
+            name = "empty"
+
+        self.data["name"] = name
+        return name
 
     def _get_value(self, name, value_type):
         """Returns the configuration with the given name and the given type.

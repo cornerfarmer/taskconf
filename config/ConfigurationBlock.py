@@ -129,6 +129,14 @@ class ConfigurationBlock:
             raise TypeError("Cannot convert '" + str(value) + "' to list!")
         return value
 
+    def flatten(self, prefix=''):
+        data = {}
+        for key in self.data.keys():
+            data[prefix + key] = self.data[key]
+        for key in self.configBlocks.keys():
+            data = {**data, **self.configBlocks[key].flatten(prefix + key + "/")}
+        return data
+
 
 class NotFoundError(Exception):
     pass
