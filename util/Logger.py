@@ -26,7 +26,7 @@ class Logger:
             if replace and path.exists():
                 path.unlink()
 
-            fh = logging.FileHandler(path)
+            fh = logging.FileHandler(str(path))
             fh.setLevel(logging.DEBUG)
 
             formatter = logging.Formatter('[%(asctime)s][%(levelname)s]%(message)s')
