@@ -2,7 +2,7 @@ import glob
 import json
 import re
 
-from config.Preset import Preset
+from TaskConf.config.Preset import Preset
 
 
 class Configuration:

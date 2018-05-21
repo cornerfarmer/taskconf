@@ -1,7 +1,7 @@
 import logging
 import uuid
 
-from config.ConfigurationBlock import ConfigurationBlock, NotFoundError
+from TaskConf.config.ConfigurationBlock import ConfigurationBlock, NotFoundError
 
 
 class Preset:
