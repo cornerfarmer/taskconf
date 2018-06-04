@@ -228,6 +228,7 @@ class Preset:
         preset = Preset(base_preset=self.base_preset)
         preset.name = self.name
         preset.config = self.config
+        preset.data = self.data
         preset.prefix = self.prefix
         preset.file = self.file
         preset.try_number = self.try_number
