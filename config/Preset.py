@@ -1,3 +1,4 @@
+import datetime
 import logging
 import uuid
 
@@ -27,17 +28,21 @@ class Preset:
             self.data = {}
             self.name = ""
             self.uuid = ""
+            self.creation_time = 0
             self.config = None
             self.abstract = False
 
     def set_data(self, new_data):
         if "uuid" not in new_data:
             new_data["uuid"] = str(uuid.uuid4())
+        if "creation_time" not in new_data:
+            new_data["creation_time"] = datetime.datetime.now().timestamp()
 
         self.data = new_data
         self.config = ConfigurationBlock(new_data["config"])
         self.name = new_data["name"] if "name" in new_data else self._generate_name()
         self.uuid = new_data["uuid"]
+        self.creation_time = datetime.datetime.fromtimestamp(new_data["creation_time"])
         self.abstract = "abstract" in new_data and bool(new_data["abstract"])
 
     def _generate_name(self):
@@ -233,6 +238,7 @@ class Preset:
         preset.file = self.file
         preset.try_number = self.try_number
         preset.uuid = self.uuid
+        preset.creation_time = self.creation_time
         return preset
 
     def get_experiment_name(self):
