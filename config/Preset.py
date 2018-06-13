@@ -3,7 +3,8 @@ import logging
 import uuid
 
 from TaskConf.config.ConfigurationBlock import ConfigurationBlock, NotFoundError
-
+import collections
+import copy
 
 class Preset:
 
@@ -37,6 +38,9 @@ class Preset:
             new_data["uuid"] = str(uuid.uuid4())
         if "creation_time" not in new_data:
             new_data["creation_time"] = datetime.datetime.now().timestamp()
+
+        if self.base_preset is not None:
+            new_data['config'] = self.base_preset.diff_config(new_data['config'])
 
         self.data = new_data
         self.config = ConfigurationBlock(new_data["config"])
@@ -259,3 +263,42 @@ class Preset:
         """
         self._printed_settings.clear()
         self.logger = new_logger
+
+    def compose_config(self):
+        config = copy.deepcopy(self.data['config'])
+        if self.base_preset is not None:
+            config = self._deep_update(self.base_preset.compose_config(), config)
+        return config
+
+    def _deep_update(self, d, u):
+        for k, v in u.items():
+            if isinstance(v, collections.Mapping):
+                d[k] = self._deep_update(d.get(k, {}), v)
+            else:
+                d[k] = v
+        return d
+
+    def diff_config(self, config):
+        new_flattened_data = ConfigurationBlock(config).flatten()
+        old_flattened_data = self.config.flatten()
+        for key in new_flattened_data:
+            if key in old_flattened_data and old_flattened_data[key] == new_flattened_data[key]:
+                keys = key.split('/')
+
+                config_block = config
+                for single_key in keys[:-1]:
+                    config_block = config_block[single_key]
+                del config_block[keys[-1]]
+
+                keys.pop()
+                while len(keys) > 0:
+                    config_block = config
+                    for single_key in keys[:-1]:
+                        config_block = config_block[single_key]
+                    if len(config_block[keys[-1]]) == 0:
+                        del config_block[keys[-1]]
+                        keys.pop()
+                    else:
+                        break
+
+        return config
