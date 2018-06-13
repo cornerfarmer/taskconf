@@ -117,7 +117,7 @@ class Configuration:
         else:
             preset_base = self.presets_by_uuid[self.default_preset_uuid]
 
-        preset_data['config'] = preset_base.diff(preset_data['config'])
+        preset_data['config'] = preset_base.diff_config(preset_data['config'])
 
         preset = self.create_preset(preset_data, preset_base, file)
         if file is not None:

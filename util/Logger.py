@@ -18,24 +18,25 @@ class Logger:
 
         if logger is None:
             self.logger = logging.getLogger(str(log_path))
-            self.logger.setLevel(logging.DEBUG)
+            if not self.logger.hasHandlers():
+                self.logger.setLevel(logging.DEBUG)
 
-            log_path.mkdir(parents=True, exist_ok=True)
+                log_path.mkdir(parents=True, exist_ok=True)
 
-            path = log_path / Path(file_name + ".log")
-            if replace and path.exists():
-                path.unlink()
+                path = log_path / Path(file_name + ".log")
+                if replace and path.exists():
+                    path.unlink()
 
-            fh = logging.FileHandler(str(path))
-            fh.setLevel(logging.DEBUG)
+                fh = logging.FileHandler(str(path))
+                fh.setLevel(logging.DEBUG)
 
-            formatter = logging.Formatter('[%(asctime)s][%(levelname)s]%(message)s')
-            fh.setFormatter(formatter)
+                formatter = logging.Formatter('[%(asctime)s][%(levelname)s]%(message)s')
+                fh.setFormatter(formatter)
 
-            self.logger.addHandler(fh)
+                self.logger.addHandler(fh)
 
-            if not replace:
-                self.log("-" * 50)
+                if not replace:
+                    self.log("-" * 50)
         else:
             self.logger = logger
 
