@@ -22,6 +22,7 @@ class Preset:
         self.try_number = 0
         self._printed_settings = set()
         self.logger = None
+        self.iteration_cursor = 0
 
         if data is not None:
             self.set_data(data)
@@ -32,6 +33,7 @@ class Preset:
             self.creation_time = 0
             self.config = None
             self.abstract = False
+            self.dynamic = False
 
     def set_data(self, new_data):
         if "uuid" not in new_data:
@@ -48,6 +50,18 @@ class Preset:
         self.uuid = new_data["uuid"]
         self.creation_time = datetime.datetime.fromtimestamp(new_data["creation_time"])
         self.abstract = "abstract" in new_data and bool(new_data["abstract"])
+        self.dynamic = "dynamic" in new_data and bool(new_data["dynamic"])
+
+    def all_timesteps(self):
+        if self.dynamic:
+            timesteps = set([int(num) for num in self.config.configBlocks.keys()])
+
+            if self.base_preset is not None:
+                timesteps |= self.base_preset.all_timesteps()
+
+            return timesteps
+        else:
+            return {0}
 
     def _generate_name(self):
         name = ""
@@ -65,6 +79,26 @@ class Preset:
         self.data["name"] = name
         return name
 
+    def valid_timesteps(self):
+        timesteps = self.all_timesteps()
+        timesteps = list(filter(lambda x: x <= self.iteration_cursor, timesteps))
+        timesteps.sort(reverse=True)
+        return timesteps
+
+    def _get_value_at_timestep(self, name, value_type, timestep):
+        if timestep > 0 and not self.dynamic:
+            raise NotFoundError("Dynamic mode not enabled for preset")
+
+        try:
+            value = getattr(self.config, 'get_' + value_type)(str(timestep) + "/" + name)
+        except NotFoundError:
+            if self.base_preset is None:
+                raise
+            else:
+                value = self.base_preset._get_value_at_timestep(name, value_type, timestep)
+
+        return value
+
     def _get_value(self, name, value_type):
         """Returns the configuration with the given name and the given type.
 
@@ -81,15 +115,14 @@ class Preset:
             NotFoundError: If the configuration cannot be found in this or any base presets.
             TypeError. If the configuration value cannot be converted into the requested type.
         """
-        try:
-            value = getattr(self.config, 'get_' + value_type)(name)
-        except NotFoundError:
-            if self.base_preset is None:
-                raise
-            else:
-                value = self.base_preset._get_value(name, value_type)
+        for timestep in self.valid_timesteps():
+            try:
+                value = self._get_value_at_timestep(name, value_type, timestep)
+                return value
+            except NotFoundError:
+                pass
 
-        return value
+        raise NotFoundError("No such configuration '" + name + "'!")
 
     def _get_value_with_fallback(self, name, fallback, value_type):
         """Returns the configuration with the given name or the fallback name and the given type.
@@ -243,6 +276,8 @@ class Preset:
         preset.try_number = self.try_number
         preset.uuid = self.uuid
         preset.creation_time = self.creation_time
+        preset.iteration_cursor = self.iteration_cursor
+        preset.dynamic = self.dynamic
         return preset
 
     def get_experiment_name(self):
