@@ -20,7 +20,7 @@ class Preset:
         self.base_preset = base_preset
         self.file = file
         self.try_number = 0
-        self._printed_settings = set()
+        self.printed_settings = dict()
         self.logger = None
         self.iteration_cursor = 0
 
@@ -55,13 +55,13 @@ class Preset:
     def all_timesteps(self):
         if self.dynamic:
             timesteps = set([int(num) for num in self.config.configBlocks.keys()])
-
-            if self.base_preset is not None:
-                timesteps |= self.base_preset.all_timesteps()
-
-            return timesteps
         else:
-            return {0}
+            timesteps = {0}
+
+        if self.base_preset is not None:
+            timesteps |= self.base_preset.all_timesteps()
+
+        return timesteps
 
     def _generate_name(self):
         name = ""
@@ -79,9 +79,9 @@ class Preset:
         self.data["name"] = name
         return name
 
-    def valid_timesteps(self):
+    def valid_timesteps(self, current_timestep):
         timesteps = self.all_timesteps()
-        timesteps = list(filter(lambda x: x <= self.iteration_cursor, timesteps))
+        timesteps = list(filter(lambda x: x <= current_timestep, timesteps))
         timesteps.sort(reverse=True)
         return timesteps
 
@@ -89,8 +89,13 @@ class Preset:
         if timestep > 0 and not self.dynamic:
             raise NotFoundError("Dynamic mode not enabled for preset")
 
+        if self.dynamic:
+            timestep_name = str(timestep) + "/" + name
+        else:
+            timestep_name = name
+
         try:
-            value = getattr(self.config, 'get_' + value_type)(str(timestep) + "/" + name)
+            value = getattr(self.config, 'get_' + value_type)(timestep_name)
         except NotFoundError:
             if self.base_preset is None:
                 raise
@@ -115,7 +120,7 @@ class Preset:
             NotFoundError: If the configuration cannot be found in this or any base presets.
             TypeError. If the configuration value cannot be converted into the requested type.
         """
-        for timestep in self.valid_timesteps():
+        for timestep in self.valid_timesteps(self.iteration_cursor):
             try:
                 value = self._get_value_at_timestep(name, value_type, timestep)
                 return value
@@ -152,9 +157,12 @@ class Preset:
             else:
                 raise
 
-        if name not in self._printed_settings and self.logger is not None:
-            self.logger.log("Using " + name + " = " + str(value))
-            self._printed_settings.add(name)
+        if (name not in self.printed_settings or self.printed_settings[name] != value) and self.logger is not None:
+            if name not in self.printed_settings:
+                self.logger.log("Using " + name + " = " + str(value))
+            else:
+                self.logger.log("Switching " + name + ": " + str(self.printed_settings[name]) + " -> " + str(value))
+            self.printed_settings[name] = value
 
         return value
 
@@ -262,14 +270,17 @@ class Preset:
         Returns:
             Preset: The new preset with the requested prefix.
         """
-        preset = self.clone()
+        preset = self.clone(deep=False)
         preset.prefix = self.prefix + prefix + "/"
         return preset
 
-    def clone(self):
+    def clone(self, deep=True):
         preset = Preset(base_preset=self.base_preset)
         preset.name = self.name
-        preset.config = self.config
+        if deep:
+            preset.config = ConfigurationBlock(self.data['config'])
+        else:
+            preset.config = self.config
         preset.data = self.data
         preset.prefix = self.prefix
         preset.file = self.file
@@ -288,21 +299,44 @@ class Preset:
         """
         return self.name + " (try " + str(self.try_number) + ")"
 
-    def set_logger(self, new_logger):
+    def set_logger(self, new_logger, printed_settings=None):
         """Cleans the list of all already printed settings.
 
         After calling this, the configuration log will start from scratch again.
 
         Args:
             new_logger: A new logger which should be used for future logging.
+            printed_settings:
         """
-        self._printed_settings.clear()
+        self.printed_settings = {} if printed_settings is None else printed_settings
         self.logger = new_logger
 
     def compose_config(self):
         config = copy.deepcopy(self.data['config'])
         if self.base_preset is not None:
             config = self._deep_update(self.base_preset.compose_config(), config)
+        return config
+
+    def compose_config_for_timestep(self, current_timestep):
+        config = {}
+        for timestep in self.valid_timesteps(current_timestep):
+            config = self._deep_update(self._compose_single_timestep(str(timestep)), config)
+        return config
+
+    def _compose_single_timestep(self, timestep):
+        if self.dynamic:
+            if timestep in self.data['config']:
+                config = copy.deepcopy(self.data['config'][timestep])
+            else:
+                config = {}
+        else:
+            if timestep == '0':
+                config = copy.deepcopy(self.data['config'])
+            else:
+                config = {}
+
+        if self.base_preset is not None:
+            config = self._deep_update(self.base_preset._compose_single_timestep(timestep), config)
         return config
 
     def _deep_update(self, d, u):
@@ -313,9 +347,12 @@ class Preset:
                 d[k] = v
         return d
 
-    def diff_config(self, config):
+    def diff_config(self, config, time_step=None):
         new_flattened_data = ConfigurationBlock(config).flatten()
-        old_flattened_data = self.config.flatten()
+        if time_step is None:
+            old_flattened_data = self.config.flatten()
+        else:
+            old_flattened_data = ConfigurationBlock(self.compose_config_for_timestep(time_step)).flatten()
         for key in new_flattened_data:
             if key in old_flattened_data and old_flattened_data[key] == new_flattened_data[key]:
                 keys = key.split('/')
@@ -337,3 +374,15 @@ class Preset:
                         break
 
         return config
+
+    def set_config_at_timestep(self, new_config, timestep):
+        data = copy.deepcopy(self.data)
+        if self.dynamic:
+            if str(timestep) in self.data['config']:
+                new_config = self._deep_update(copy.deepcopy(self.data['config'][str(timestep)]), new_config)
+        else:
+            data['config'] = {'0': data['config']}
+            data['dynamic'] = True
+
+        data['config'][str(timestep)] = new_config
+        self.set_data(data)
