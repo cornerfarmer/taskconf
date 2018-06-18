@@ -42,7 +42,7 @@ class Preset:
             new_data["creation_time"] = datetime.datetime.now().timestamp()
 
         if self.base_preset is not None:
-            new_data['config'] = self.base_preset.diff_config(new_data['config'])
+            new_data['config'] = self.base_preset.diff_config(new_data['config'], force_dynamic="dynamic" in new_data and bool(new_data["dynamic"]))
 
         self.data = new_data
         self.config = ConfigurationBlock(new_data["config"])
@@ -311,10 +311,14 @@ class Preset:
         self.printed_settings = {} if printed_settings is None else printed_settings
         self.logger = new_logger
 
-    def compose_config(self):
+    def compose_config(self, force_dynamic=False):
         config = copy.deepcopy(self.data['config'])
+
+        if not self.dynamic and force_dynamic:
+            config = {'0': config}
+
         if self.base_preset is not None:
-            config = self._deep_update(self.base_preset.compose_config(), config)
+            config = self._deep_update(self.base_preset.compose_config(force_dynamic=force_dynamic or self.dynamic), config)
         return config
 
     def compose_config_for_timestep(self, current_timestep):
@@ -347,12 +351,16 @@ class Preset:
                 d[k] = v
         return d
 
-    def diff_config(self, config, time_step=None):
+    def diff_config(self, config, time_step=None, force_dynamic=False):
         new_flattened_data = ConfigurationBlock(config).flatten()
         if time_step is None:
-            old_flattened_data = self.config.flatten()
+            if self.dynamic or not force_dynamic:
+                old_flattened_data = self.config.flatten()
+            else:
+                old_flattened_data = ConfigurationBlock({'0': self.data['config']}).flatten()
         else:
             old_flattened_data = ConfigurationBlock(self.compose_config_for_timestep(time_step)).flatten()
+
         for key in new_flattened_data:
             if key in old_flattened_data and old_flattened_data[key] == new_flattened_data[key]:
                 keys = key.split('/')
