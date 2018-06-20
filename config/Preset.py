@@ -35,6 +35,12 @@ class Preset:
             self.abstract = False
             self.dynamic = False
 
+    def treat_dynamic(self, simulated_base=None):
+        if simulated_base is None:
+            return self.dynamic or (self.base_preset is not None and self.base_preset.treat_dynamic())
+        else:
+            return self.dynamic or simulated_base.treat_dynamic()
+
     def set_data(self, new_data):
         if "uuid" not in new_data:
             new_data["uuid"] = str(uuid.uuid4())
@@ -42,7 +48,7 @@ class Preset:
             new_data["creation_time"] = datetime.datetime.now().timestamp()
 
         if self.base_preset is not None:
-            new_data['config'] = self.base_preset.diff_config(new_data['config'], force_dynamic="dynamic" in new_data and bool(new_data["dynamic"]))
+            new_data['config'] = self.base_preset.diff_config(new_data['config'], "dynamic" in new_data and bool(new_data["dynamic"]))
 
         self.data = new_data
         self.config = ConfigurationBlock(new_data["config"])
@@ -53,7 +59,7 @@ class Preset:
         self.dynamic = "dynamic" in new_data and bool(new_data["dynamic"])
 
     def all_timesteps(self):
-        if self.dynamic:
+        if self.treat_dynamic():
             timesteps = set([int(num) for num in self.config.configBlocks.keys()])
         else:
             timesteps = {0}
@@ -86,10 +92,10 @@ class Preset:
         return timesteps
 
     def _get_value_at_timestep(self, name, value_type, timestep):
-        if timestep > 0 and not self.dynamic:
+        if timestep > 0 and not self.treat_dynamic():
             raise NotFoundError("Dynamic mode not enabled for preset")
 
-        if self.dynamic:
+        if self.treat_dynamic():
             timestep_name = str(timestep) + "/" + name
         else:
             timestep_name = name
@@ -311,14 +317,14 @@ class Preset:
         self.printed_settings = {} if printed_settings is None else printed_settings
         self.logger = new_logger
 
-    def compose_config(self, force_dynamic=False):
+    def compose_config(self, simulated_base=None, force_dynamic=False):
         config = copy.deepcopy(self.data['config'])
 
-        if not self.dynamic and force_dynamic:
+        if not self.dynamic and (self.treat_dynamic(simulated_base) or force_dynamic):
             config = {'0': config}
 
-        if self.base_preset is not None:
-            config = self._deep_update(self.base_preset.compose_config(force_dynamic=force_dynamic or self.dynamic), config)
+        if self.base_preset is not None or simulated_base is not None:
+            config = self._deep_update(self.base_preset.compose_config(force_dynamic=force_dynamic or self.dynamic) if simulated_base is None else simulated_base.compose_config(force_dynamic=force_dynamic or self.dynamic), config)
         return config
 
     def compose_config_for_timestep(self, current_timestep):
@@ -328,7 +334,7 @@ class Preset:
         return config
 
     def _compose_single_timestep(self, timestep):
-        if self.dynamic:
+        if self.treat_dynamic():
             if timestep in self.data['config']:
                 config = copy.deepcopy(self.data['config'][timestep])
             else:
@@ -351,10 +357,14 @@ class Preset:
                 d[k] = v
         return d
 
-    def diff_config(self, config, time_step=None, force_dynamic=False):
+    def diff_config(self, config, config_is_dynamic, time_step=None):
+        if time_step is None and not config_is_dynamic:
+            config = {'0': config}
+
         new_flattened_data = ConfigurationBlock(config).flatten()
+
         if time_step is None:
-            if self.dynamic or not force_dynamic:
+            if self.dynamic:
                 old_flattened_data = self.config.flatten()
             else:
                 old_flattened_data = ConfigurationBlock({'0': self.data['config']}).flatten()
@@ -380,6 +390,9 @@ class Preset:
                         keys.pop()
                     else:
                         break
+
+        if time_step is None and not config_is_dynamic and len(config) > 0:
+            config = config['0']
 
         return config
 
