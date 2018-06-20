@@ -364,10 +364,7 @@ class Preset:
         new_flattened_data = ConfigurationBlock(config).flatten()
 
         if time_step is None:
-            if self.dynamic:
-                old_flattened_data = self.config.flatten()
-            else:
-                old_flattened_data = ConfigurationBlock({'0': self.data['config']}).flatten()
+            old_flattened_data = ConfigurationBlock(self.compose_config(force_dynamic=True)).flatten()
         else:
             old_flattened_data = ConfigurationBlock(self.compose_config_for_timestep(time_step)).flatten()
 
