@@ -285,9 +285,10 @@ class Preset:
         preset.name = self.name
         if deep:
             preset.config = ConfigurationBlock(self.data['config'])
+            preset.data =  copy.deepcopy(self.data)
         else:
             preset.config = self.config
-        preset.data = self.data
+            preset.data = self.data
         preset.prefix = self.prefix
         preset.file = self.file
         preset.try_number = self.try_number
