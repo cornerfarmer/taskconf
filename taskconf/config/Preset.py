@@ -319,6 +319,15 @@ class Preset:
         self.logger = new_logger
 
     def compose_config(self, simulated_base=None, force_dynamic=False):
+        """Merges the config of this preset and all its base presets.
+
+        Args:
+            simulated_base: A preset which should be used as base.
+            force_dynamic: True, if the composed config should in any case be dynamic.
+
+        Returns:
+            dict: The composed config
+        """
         config = copy.deepcopy(self.data['config'])
 
         if not self.dynamic and (self.treat_dynamic(simulated_base) or force_dynamic):
@@ -329,6 +338,14 @@ class Preset:
         return config
 
     def compose_config_for_timestep(self, current_timestep):
+        """Merges the config of this preset and all its base presets at a given timestep.
+
+        Args:
+            current_timestep: The timestep at which the configs should be merged.
+
+        Returns:
+            dict: The merged config.
+        """
         config = {}
         for timestep in self.valid_timesteps(current_timestep):
             config = self._deep_update(self._compose_single_timestep(str(timestep)), config)
@@ -393,6 +410,7 @@ class Preset:
             config = config['0']
 
         return config
+
 
     def set_config_at_timestep(self, new_config, timestep):
         data = copy.deepcopy(self.data)

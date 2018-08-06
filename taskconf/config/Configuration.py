@@ -3,6 +3,7 @@ import json
 import re
 
 from taskconf.config.Preset import Preset
+import uuid
 
 
 class Configuration:
@@ -34,7 +35,7 @@ class Configuration:
                 for preset_data in data:
 
                     if not "uuid" in preset_data:
-                        raise Exception("The given preset has no uuid!")
+                        preset_data["uuid"] = str(uuid.uuid4())
 
                     if preset_data["uuid"] not in self._json_by_uuid:
                         self._json_by_uuid[preset_data["uuid"]] = {"data": preset_data, "file": path[len(config_path) + 1:]}
@@ -48,9 +49,9 @@ class Configuration:
         if self.default_preset_uuid is None:
             raise Exception("No default preset has been found!")
 
-        for uuid in self._ordered_preset:
-            self._load_preset_with_uuid(uuid)
-            self.presets.append(self.presets_by_uuid[uuid])
+        for preset_uuid in self._ordered_preset:
+            self._load_preset_with_uuid(preset_uuid)
+            self.presets.append(self.presets_by_uuid[preset_uuid])
 
         self.save()
 
