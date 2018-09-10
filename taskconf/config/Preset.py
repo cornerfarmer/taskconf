@@ -266,6 +266,9 @@ class Preset:
             TypeError. If the configuration value cannot be converted into a list.
         """
         return self._get_value_with_fallback(name, fallback, 'list')
+    
+    def get_keys(self, name):
+        return self.config.get_keys(name)
 
     def get_with_prefix(self, prefix):
         """Clones this preset and adds an additional prefix.

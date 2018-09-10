@@ -129,6 +129,23 @@ class ConfigurationBlock:
             raise TypeError("Cannot convert '" + str(value) + "' to list!")
         return value
 
+    def get_keys(self, name):
+        if name != "":
+            if "/" in name:
+                delimiter_pos = name.find("/")
+                block_name = name[:delimiter_pos]
+                name = name[delimiter_pos + 1:]
+            else:
+                block_name = name
+                name = ""
+                
+            if block_name in self.configBlocks:
+                return self.configBlocks[block_name].get_keys(name)
+            else:
+                raise NotFoundError("No such configuration block '" + block_name + "'!")
+        else:
+            return list(self.configBlocks.keys()) + list(self.data.keys())
+
     def flatten(self, prefix=''):
         data = {}
         for key in self.data.keys():
