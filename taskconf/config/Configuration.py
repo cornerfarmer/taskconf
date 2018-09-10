@@ -4,7 +4,8 @@ import re
 
 from taskconf.config.Preset import Preset
 import uuid
-
+import fnmatch
+import os
 
 class Configuration:
 
@@ -27,7 +28,7 @@ class Configuration:
         self.default_preset_name = default_preset_name
         self.default_preset_uuid = None
 
-        for path in glob.iglob(config_path + "/**/*.json", recursive=True):
+        for path in self._find_recursive(config_path, "*.json"):
             with open(path) as data_file:
                 input_str = re.sub(r'^\s*//.*\n', '\n', data_file.read(), flags=re.MULTILINE)
                 data = json.loads(input_str)
@@ -56,6 +57,13 @@ class Configuration:
         self.save()
 
         print("Loaded " + str(len(self.presets)) + " presets.")
+
+    def _find_recursive(self, dir, file_ending):
+        matches = []
+        for root, dirnames, filenames in os.walk(dir):
+            for filename in fnmatch.filter(filenames, file_ending):
+                matches.append(os.path.join(root, filename))
+        return matches
 
     def _load_preset_with_uuid(self, preset_uuid, children_presets=[]):
         """Loads the preset with the given uuid and all its base presets.

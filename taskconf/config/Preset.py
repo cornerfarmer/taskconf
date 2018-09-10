@@ -45,7 +45,7 @@ class Preset:
         if "uuid" not in new_data:
             new_data["uuid"] = str(uuid.uuid4())
         if "creation_time" not in new_data:
-            new_data["creation_time"] = datetime.datetime.now().timestamp()
+            new_data["creation_time"] = (datetime.datetime.now() - datetime.datetime.fromtimestamp(0)).total_seconds()
 
         if self.base_preset is not None:
             new_data['config'] = self.base_preset.diff_config(new_data['config'], "dynamic" in new_data and bool(new_data["dynamic"]))

@@ -1,6 +1,9 @@
 import logging
 import os
-from pathlib import Path
+try:
+  from pathlib2 import Path
+except ImportError:
+  from pathlib import Path
 
 class Logger:
 
@@ -18,7 +21,7 @@ class Logger:
 
         if logger is None:
             self.logger = logging.getLogger(str(log_path))
-            if not self.logger.hasHandlers():
+            if not self.logger.handlers:
                 self.logger.setLevel(logging.DEBUG)
 
                 log_path.mkdir(parents=True, exist_ok=True)

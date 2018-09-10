@@ -151,7 +151,7 @@ class ConfigurationBlock:
         for key in self.data.keys():
             data[prefix + key] = self.data[key]
         for key in self.configBlocks.keys():
-            data = {**data, **self.configBlocks[key].flatten(prefix + key + "/")}
+            data.update(self.configBlocks[key].flatten(prefix + key + "/"))
         return data
 
 
