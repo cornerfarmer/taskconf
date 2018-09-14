@@ -5,6 +5,7 @@ import uuid
 from taskconf.config.ConfigurationBlock import ConfigurationBlock, NotFoundError
 import collections
 import copy
+import time
 
 class Preset:
 
@@ -45,7 +46,7 @@ class Preset:
         if "uuid" not in new_data:
             new_data["uuid"] = str(uuid.uuid4())
         if "creation_time" not in new_data:
-            new_data["creation_time"] = (datetime.datetime.now() - datetime.datetime.fromtimestamp(0)).total_seconds()
+            new_data["creation_time"] = time.mktime(datetime.datetime.now().timetuple())
 
         if self.base_preset is not None:
             new_data['config'] = self.base_preset.diff_config(new_data['config'], "dynamic" in new_data and bool(new_data["dynamic"]))
