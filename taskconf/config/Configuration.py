@@ -113,7 +113,7 @@ class Configuration:
 
         if len(data) > 0 and len(filename) > 0:
             with open(self.config_path + "/" + filename, 'w') as data_file:
-                json.dump(data, data_file, indent=2, separators=(',', ': '))
+                json.dump(data, data_file, indent=2, separators=(',', ': '), sort_keys=True)
 
     def save(self):
         for filename in self.presets_by_file.keys():
