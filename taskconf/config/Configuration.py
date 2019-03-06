@@ -54,8 +54,6 @@ class Configuration:
             self._load_preset_with_uuid(preset_uuid)
             self.presets.append(self.presets_by_uuid[preset_uuid])
 
-        self.save()
-
         print("Loaded " + str(len(self.presets)) + " presets.")
 
     def _find_recursive(self, dir, file_ending):
@@ -125,8 +123,6 @@ class Configuration:
             preset_base = self.presets_by_uuid[preset_data['base']]
         else:
             preset_base = self.presets_by_uuid[self.default_preset_uuid]
-
-        preset_data['config'] = preset_base.diff_config(preset_data['config'], 'dynamic' in preset_data and bool(preset_data['dynamic']))
 
         preset = self.create_preset(preset_data, preset_base, file)
         if file is not None:

@@ -48,9 +48,6 @@ class Preset:
         if "creation_time" not in new_data:
             new_data["creation_time"] = time.mktime(datetime.datetime.now().timetuple())
 
-        if self.base_preset is not None:
-            new_data['config'] = self.base_preset.diff_config(new_data['config'], "dynamic" in new_data and bool(new_data["dynamic"]))
-
         self.data = new_data
         self.config = ConfigurationBlock(new_data["config"])
         self.name = new_data["name"] if "name" in new_data else self._generate_name()
@@ -289,7 +286,7 @@ class Preset:
         preset.name = self.name
         if deep:
             preset.config = ConfigurationBlock(self.data['config'])
-            preset.data =  copy.deepcopy(self.data)
+            preset.data = copy.deepcopy(self.data)
         else:
             preset.config = self.config
             preset.data = self.data
@@ -378,43 +375,6 @@ class Preset:
             else:
                 d[k] = v
         return d
-
-    def diff_config(self, config, config_is_dynamic, time_step=None):
-        if time_step is None and not config_is_dynamic:
-            config = {'0': config}
-
-        new_flattened_data = ConfigurationBlock(config).flatten()
-
-        if time_step is None:
-            old_flattened_data = ConfigurationBlock(self.compose_config(force_dynamic=True)).flatten()
-        else:
-            old_flattened_data = ConfigurationBlock(self.compose_config_for_timestep(time_step)).flatten()
-
-        for key in new_flattened_data:
-            if key in old_flattened_data and old_flattened_data[key] == new_flattened_data[key]:
-                keys = key.split('/')
-
-                config_block = config
-                for single_key in keys[:-1]:
-                    config_block = config_block[single_key]
-                del config_block[keys[-1]]
-
-                keys.pop()
-                while len(keys) > 0:
-                    config_block = config
-                    for single_key in keys[:-1]:
-                        config_block = config_block[single_key]
-                    if len(config_block[keys[-1]]) == 0:
-                        del config_block[keys[-1]]
-                        keys.pop()
-                    else:
-                        break
-
-        if time_step is None and not config_is_dynamic and len(config) > 0:
-            config = config['0']
-
-        return config
-
 
     def set_config_at_timestep(self, new_config, timestep):
         data = copy.deepcopy(self.data)
