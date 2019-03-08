@@ -1,13 +1,15 @@
 import logging
-import os
 try:
   from pathlib2 import Path
 except ImportError:
   from pathlib import Path
+from multiprocessing import Lock
+import datetime
+
 
 class Logger:
 
-    def __init__(self, log_path=None, file_name=None, logger=None, module_name="general", replace=False):
+    def __init__(self, log_path=None, file_name=None, parent_logger=None, module_name="general", replace=False):
         """ Creates a logger.
 
         Args:
@@ -17,31 +19,24 @@ class Logger:
             module_name(str): The name of the module which uses this logger.
             replace(bool): True, if an existing log file should be replaced.
         """
-        self.module_name = module_name
+        self._module_name = module_name
 
-        if logger is None:
-            self.logger = logging.getLogger(str(log_path))
-            if not self.logger.handlers:
-                self.logger.setLevel(logging.DEBUG)
+        if parent_logger is None:
+            self._parent = None
+            path = log_path / Path(file_name + ".log")
+            if replace and path.exists():
+                path.unlink()
 
-                log_path.mkdir(parents=True, exist_ok=True)
-
-                path = log_path / Path(file_name + ".log")
-                if replace and path.exists():
-                    path.unlink()
-
-                fh = logging.FileHandler(str(path))
-                fh.setLevel(logging.DEBUG)
-
-                formatter = logging.Formatter('[%(asctime)s][%(levelname)s]%(message)s')
-                fh.setFormatter(formatter)
-
-                self.logger.addHandler(fh)
-
-                if not replace:
-                    self.log("-" * 50)
+            self._mutex = Lock()
+            self._file = open(str(path), "a")
+            if not replace:
+                self.log("-" * 50)
         else:
-            self.logger = logger
+            self._parent = parent_logger
+
+    def __del__(self):
+        if self._parent is None:
+            self._file.close()
 
     def log(self, message, level=logging.INFO):
         """ Logs the given message.
@@ -50,7 +45,20 @@ class Logger:
             level(int): The log level of the message.
             message(str): The message.
         """
-        self.logger.log(level, '[' + self.module_name + '] ' + message)
+        if self._parent is None:
+            line = ""
+            line += "[" + str(datetime.datetime.now()) + "]"
+            line += "[" + logging.getLevelName(level) + "]"
+            line += "[" + self._module_name + "]"
+            line += " " + message
+            line += "\n"
+
+            self._mutex.acquire()
+            self._file.write(line)
+            self._file.flush()
+            self._mutex.release()
+        else:
+            self._parent.log(message, level)
 
     def log_confusion_matrix(self, level, confusion_matrix, classes):
         """ Logs the given confusion matrix with proper alignment.
@@ -86,4 +94,4 @@ class Logger:
         Returns:
             Logger: The cloned logger.
         """
-        return Logger(logger=self.logger, module_name=module_name)
+        return Logger(parent_logger=self, module_name=module_name)
