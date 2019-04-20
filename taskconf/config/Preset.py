@@ -9,7 +9,7 @@ import time
 
 class Preset:
 
-    def __init__(self, data=None, base_preset=None, file=None):
+    def __init__(self, data=None, base_presets=None, file=None):
         """Creates a new preset.
 
         Args:
@@ -18,11 +18,9 @@ class Preset:
             file(str): The filename which contained the preset.
         """
         self.prefix = ""
-        self.base_preset = base_preset
+        self.base_presets = base_presets
         self.file = file
         self.try_number = 0
-        self.printed_settings = dict()
-        self.logger = None
         self.iteration_cursor = 0
 
         if data is not None:
@@ -36,12 +34,6 @@ class Preset:
             self.abstract = False
             self.dynamic = False
 
-    def treat_dynamic(self, simulated_base=None):
-        if simulated_base is None:
-            return self.dynamic or (self.base_preset is not None and self.base_preset.treat_dynamic())
-        else:
-            return self.dynamic or simulated_base.treat_dynamic()
-
     def set_data(self, new_data):
         if "uuid" not in new_data:
             new_data["uuid"] = str(uuid.uuid4())
@@ -49,23 +41,24 @@ class Preset:
             new_data["creation_time"] = time.mktime(datetime.datetime.now().timetuple())
 
         self.data = new_data
-        self.config = ConfigurationBlock(new_data["config"])
         self.name = new_data["name"] if "name" in new_data else self._generate_name()
         self.uuid = new_data["uuid"]
         self.creation_time = datetime.datetime.fromtimestamp(new_data["creation_time"])
         self.abstract = "abstract" in new_data and bool(new_data["abstract"])
         self.dynamic = "dynamic" in new_data and bool(new_data["dynamic"])
+        self.config = self._build_config(new_data["config"])
 
-    def all_timesteps(self):
-        if self.treat_dynamic():
-            timesteps = set([int(num) for num in self.config.configBlocks.keys()])
-        else:
-            timesteps = {0}
+    def _build_config(self, config):
+        if not self.dynamic:
+            config = {"0": config}
 
-        if self.base_preset is not None:
-            timesteps |= self.base_preset.all_timesteps()
+        base_configs = []
+        for base_preset in self.base_presets:
+            base_configs.append(base_preset.get_merged_config())
+        return ConfigurationBlock(config, base_configs)
 
-        return timesteps
+    def get_merged_config(self):
+        return self.config.get_merged_config()
 
     def _generate_name(self):
         name = ""
@@ -82,93 +75,6 @@ class Preset:
 
         self.data["name"] = name
         return name
-
-    def valid_timesteps(self, current_timestep):
-        timesteps = self.all_timesteps()
-        timesteps = list(filter(lambda x: x <= current_timestep, timesteps))
-        timesteps.sort(reverse=True)
-        return timesteps
-
-    def _get_value_at_timestep(self, name, value_type, timestep):
-        if timestep > 0 and not self.treat_dynamic():
-            raise NotFoundError("Dynamic mode not enabled for preset")
-
-        if self.treat_dynamic():
-            timestep_name = str(timestep) + "/" + name
-        else:
-            timestep_name = name
-
-        try:
-            value = getattr(self.config, 'get_' + value_type)(timestep_name)
-        except NotFoundError:
-            if self.base_preset is None:
-                raise
-            else:
-                value = self.base_preset._get_value_at_timestep(name, value_type, timestep)
-
-        return value
-
-    def _get_value(self, name, value_type):
-        """Returns the configuration with the given name and the given type.
-
-        If the configuration cannot be found in this preset, the request will use the base preset as fallback.
-
-        Args:
-            name(str): The name of the configuration.
-            value_type(str): The desired type of the configuration value.
-
-        Returns:
-            object: The value of the configuration in the requested type.
-
-        Raises:
-            NotFoundError: If the configuration cannot be found in this or any base presets.
-            TypeError. If the configuration value cannot be converted into the requested type.
-        """
-        for timestep in self.valid_timesteps(self.iteration_cursor):
-            try:
-                value = self._get_value_at_timestep(name, value_type, timestep)
-                return value
-            except NotFoundError:
-                pass
-
-        raise NotFoundError("No such configuration '" + name + "'!")
-
-    def _get_value_with_fallback(self, name, fallback, value_type):
-        """Returns the configuration with the given name or the fallback name and the given type.
-
-        If the configuration cannot be found in this preset, the request will use the base preset as fallback.
-        If there is no configuration with the given name, the fallback configuration will be used.
-
-        Args:
-            name(str): The name of the configuration.
-            fallback(str): The name of the fallback configuration, which should be used if the primary one cannot be found.
-            value_type(str): The desired type of the configuration value.
-
-        Returns:
-            object: The value of the configuration in the requested type.
-
-        Raises:
-            NotFoundError: If the configuration cannot be found in this or any base presets.
-            TypeError. If the configuration value cannot be converted into the requested type.
-        """
-        name = self.prefix + name
-
-        try:
-            value = self._get_value(name, value_type)
-        except NotFoundError:
-            if fallback is not None:
-                value = self._get_value(self.prefix + fallback, value_type)
-            else:
-                raise
-
-        if (name not in self.printed_settings or self.printed_settings[name] != value) and self.logger is not None:
-            if name not in self.printed_settings:
-                self.logger.log("Using " + name + " = " + str(value))
-            else:
-                self.logger.log("Switching " + name + ": " + str(self.printed_settings[name]) + " -> " + str(value))
-            self.printed_settings[name] = value
-
-        return value
 
     def get_int(self, name, fallback=None):
         """Returns the configuration with the given name or the fallback name as an integer.
@@ -187,7 +93,7 @@ class Preset:
             NotFoundError: If the configuration cannot be found in this or any base presets.
             TypeError. If the configuration value cannot be converted into an integer.
         """
-        return self._get_value_with_fallback(name, fallback, 'int')
+        return self.config.get_int(name, fallback, self.iteration_cursor)
 
     def get_string(self, name, fallback=None):
         """Returns the configuration with the given name or the fallback name as a string.
@@ -206,7 +112,7 @@ class Preset:
             NotFoundError: If the configuration cannot be found in this or any base presets.
             TypeError. If the configuration value cannot be converted into a string.
         """
-        return self._get_value_with_fallback(name, fallback, 'string')
+        return self.config.get_string(name, fallback, self.iteration_cursor)
 
     def get_float(self, name, fallback=None):
         """Returns the configuration with the given name or the fallback name as a float.
@@ -225,7 +131,7 @@ class Preset:
             NotFoundError: If the configuration cannot be found in this or any base presets.
             TypeError. If the configuration value cannot be converted into a float.
         """
-        return self._get_value_with_fallback(name, fallback, 'float')
+        return self.config.get_float(name, fallback, self.iteration_cursor)
 
     def get_bool(self, name, fallback=None):
         """Returns the configuration with the given name or the fallback name as a bool.
@@ -244,7 +150,7 @@ class Preset:
             NotFoundError: If the configuration cannot be found in this or any base presets.
             TypeError. If the configuration value cannot be converted into a bool.
         """
-        return self._get_value_with_fallback(name, fallback, 'bool')
+        return self.config.get_bool(name, fallback, self.iteration_cursor)
 
     def get_list(self, name, fallback=None):
         """Returns the configuration with the given name or the fallback name as a list.
@@ -263,7 +169,7 @@ class Preset:
             NotFoundError: If the configuration cannot be found in this or any base presets.
             TypeError. If the configuration value cannot be converted into a list.
         """
-        return self._get_value_with_fallback(name, fallback, 'list')
+        return self.config.get_list(name, fallback, self.iteration_cursor)
     
     def get_keys(self, name):
         return self.config.get_keys(name)
@@ -282,7 +188,7 @@ class Preset:
         return preset
 
     def clone(self, deep=True):
-        preset = Preset(base_preset=self.base_preset)
+        preset = Preset(base_presets=self.base_presets)
         preset.name = self.name
         if deep:
             preset.config = ConfigurationBlock(self.data['config'])
@@ -316,8 +222,7 @@ class Preset:
             new_logger: A new logger which should be used for future logging.
             printed_settings:
         """
-        self.printed_settings = {} if printed_settings is None else printed_settings
-        self.logger = new_logger
+        self.config.set_logger(new_logger, printed_settings)
 
     def compose_config(self, simulated_base=None, force_dynamic=False):
         """Merges the config of this preset and all its base presets.

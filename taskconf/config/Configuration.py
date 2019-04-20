@@ -9,12 +9,11 @@ import os
 
 class Configuration:
 
-    def __init__(self, config_path=None, default_preset_name="Default"):
+    def __init__(self, config_path=None):
         """ Creates a new configuration.
 
         Args:
             config_path(str): The path where the config files are stored.
-            default_preset_name(str): The name of the default base preset.
         """
         if config_path is None:
             config_path = "config"
@@ -25,8 +24,6 @@ class Configuration:
         self.presets_by_uuid = {}
         self._json_by_uuid = {}
         self._ordered_preset = []
-        self.default_preset_name = default_preset_name
-        self.default_preset_uuid = None
 
         for path in self._find_recursive(config_path, "*.json"):
             with open(path) as data_file:
@@ -41,14 +38,8 @@ class Configuration:
                     if preset_data["uuid"] not in self._json_by_uuid:
                         self._json_by_uuid[preset_data["uuid"]] = {"data": preset_data, "file": path[len(config_path) + 1:]}
                         self._ordered_preset.append(preset_data["uuid"])
-
-                        if "name" in preset_data and preset_data['name'] == self.default_preset_name:
-                            self.default_preset_uuid = preset_data["uuid"]
                     else:
                         raise Exception("A preset with uuid '" + preset_data["uuid"] + "' is already defined!")
-
-        if self.default_preset_uuid is None:
-            raise Exception("No default preset has been found!")
 
         for preset_uuid in self._ordered_preset:
             self._load_preset_with_uuid(preset_uuid)
@@ -83,13 +74,17 @@ class Configuration:
             preset_data = self._json_by_uuid[preset_uuid]["data"]
 
             if "base" in preset_data:
-                preset_base = self._load_preset_with_uuid(preset_data["base"], children_presets + [preset_uuid])
-            elif preset_uuid != self.default_preset_uuid:
-                preset_base = self._load_preset_with_uuid(self.default_preset_uuid, children_presets + [preset_uuid])
-            else:
-                preset_base = None
+                base_preset_uuids = preset_data["base"]
+                if not type(base_preset_uuids) is list:
+                    base_preset_uuids = [base_preset_uuids]
 
-            self.create_preset(preset_data, preset_base, self._json_by_uuid[preset_uuid]["file"])
+                base_presets = []
+                for base_preset_uuid in base_preset_uuids:
+                    base_presets.append(self._load_preset_with_uuid(base_preset_uuid, children_presets + [preset_uuid]))
+            else:
+                base_presets = []
+
+            self.create_preset(preset_data, base_presets, self._json_by_uuid[preset_uuid]["file"])
 
         return self.presets_by_uuid[preset_uuid]
 
