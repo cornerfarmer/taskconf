@@ -69,11 +69,14 @@ class Preset:
 
         base_configs = []
         for base_preset in self.base_presets:
-            base_configs.append(base_preset.get_merged_config())
+            base_configs.append(base_preset.get_merged_config(True))
         return ConfigurationBlock(config, base_configs)
 
-    def get_merged_config(self):
-        return self.config.get_merged_config()
+    def get_merged_config(self, force_dynamic=False):
+        config = self.config.get_merged_config()
+        if not force_dynamic and not self.treat_dynamic():
+            config = config["0"]
+        return config
 
     def get_int(self, name, fallback=None):
         """Returns the configuration with the given name or the fallback name as an integer.
@@ -190,7 +193,6 @@ class Preset:
 
     def clone(self, deep=True):
         preset = Preset(base_presets=self.base_presets)
-        preset.name = self.name
         if deep:
             preset.config = ConfigurationBlock(self.data['config'])
             preset.data = copy.deepcopy(self.data)
