@@ -9,7 +9,7 @@ import time
 
 class Preset:
 
-    def __init__(self, data=None, base_presets=None, file=None):
+    def __init__(self, data=None, base_presets=[], file=None):
         """Creates a new preset.
 
         Args:
@@ -34,6 +34,16 @@ class Preset:
             self.abstract = False
             self.dynamic = False
 
+    def treat_dynamic(self):
+        if self.dynamic:
+            return True
+
+        for base_preset in self.base_presets:
+            if base_preset.treat_dynamic():
+                return True
+
+        return False
+
     def set_data(self, new_data):
         if "uuid" not in new_data:
             new_data["uuid"] = str(uuid.uuid4())
@@ -41,12 +51,17 @@ class Preset:
             new_data["creation_time"] = time.mktime(datetime.datetime.now().timetuple())
 
         self.data = new_data
-        self.name = new_data["name"] if "name" in new_data else self._generate_name()
         self.uuid = new_data["uuid"]
         self.creation_time = datetime.datetime.fromtimestamp(new_data["creation_time"])
         self.abstract = "abstract" in new_data and bool(new_data["abstract"])
         self.dynamic = "dynamic" in new_data and bool(new_data["dynamic"])
         self.config = self._build_config(new_data["config"])
+
+    def set_metadata(self, name, value):
+        self.data[name] = value
+
+    def get_metadata(self, name):
+        return self.data[name]
 
     def _build_config(self, config):
         if not self.dynamic:
@@ -59,22 +74,6 @@ class Preset:
 
     def get_merged_config(self):
         return self.config.get_merged_config()
-
-    def _generate_name(self):
-        name = ""
-        if self.base_preset is not None and self.base_preset.base_preset is not None:
-            name += self.base_preset.name + ": "
-        flattened_data = self.config.flatten()
-        for key in flattened_data:
-            name += key + ": " + str(flattened_data[key]) + " - "
-
-        if name.endswith(" - "):
-            name = name[:-3]
-        elif name is "":
-            name = "empty"
-
-        self.data["name"] = name
-        return name
 
     def get_int(self, name, fallback=None):
         """Returns the configuration with the given name or the fallback name as an integer.
@@ -172,6 +171,8 @@ class Preset:
         return self.config.get_list(name, fallback, self.iteration_cursor)
     
     def get_keys(self, name):
+        if not self.dynamic:
+            name = "0/" + name
         return self.config.get_keys(name)
 
     def get_with_prefix(self, prefix):

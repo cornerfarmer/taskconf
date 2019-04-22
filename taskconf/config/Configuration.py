@@ -88,8 +88,8 @@ class Configuration:
 
         return self.presets_by_uuid[preset_uuid]
 
-    def create_preset(self, preset_data, preset_base, file):
-        preset = Preset(preset_data, preset_base, file)
+    def create_preset(self, preset_data, base_presets, file):
+        preset = Preset(preset_data, base_presets, file)
 
         if preset.file is not None:
             if preset.file not in self.presets_by_file:
@@ -105,7 +105,7 @@ class Configuration:
             data.append(preset.data)
 
         if len(data) > 0 and len(filename) > 0:
-            with open(self.config_path + "/" + filename, 'w') as data_file:
+            with open(self.config_path + "/" + filename, 'w+') as data_file:
                 json.dump(data, data_file, indent=2, separators=(',', ': '), sort_keys=True)
 
     def save(self):
@@ -113,13 +113,19 @@ class Configuration:
             if filename is not None:
                 self.save_to_file(filename, self.presets_by_file[filename])
 
-    def add_preset(self, preset_data, file):
+    def add_preset(self, preset_data, file, metadata={}):
         if "base" in preset_data:
-            preset_base = self.presets_by_uuid[preset_data['base']]
-        else:
-            preset_base = self.presets_by_uuid[self.default_preset_uuid]
+            base_preset_uuids = preset_data["base"]
+            if not type(base_preset_uuids) is list:
+                base_preset_uuids = [base_preset_uuids]
 
-        preset = self.create_preset(preset_data, preset_base, file)
+            base_presets = [self.presets_by_uuid[base] for base in base_preset_uuids]
+        else:
+            base_presets = []
+
+        preset = self.create_preset(preset_data, base_presets, file)
+        for key in metadata:
+            preset.set_metadata(key, metadata[key])
         if file is not None:
             self.presets.append(preset)
             self.save()

@@ -223,6 +223,9 @@ class ConfigurationBlock:
         return value
 
     def get_keys(self, name):
+        return self._get_keys(name, self.merged_config)
+
+    def _get_keys(self, name, block):
         if name != "":
             if "/" in name:
                 delimiter_pos = name.find("/")
@@ -231,13 +234,13 @@ class ConfigurationBlock:
             else:
                 block_name = name
                 name = ""
-                
-            if block_name in self.configBlocks:
-                return self.configBlocks[block_name].get_keys(name)
+
+            if block_name in block:
+                return self._get_keys(name, block[block_name])
             else:
                 raise NotFoundError("No such configuration block '" + block_name + "'!")
         else:
-            return list(self.configBlocks.keys()) + list(self.data.keys())
+            return list(block.keys())
 
     def flatten(self, prefix=''):
         data = {}
