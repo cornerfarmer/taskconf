@@ -194,7 +194,7 @@ class Preset:
     def clone(self, deep=True):
         preset = Preset(base_presets=self.base_presets)
         if deep:
-            preset.config = ConfigurationBlock(self.data['config'])
+            preset.config = self.config.clone()
             preset.data = copy.deepcopy(self.data)
         else:
             preset.config = self.config

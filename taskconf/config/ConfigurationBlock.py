@@ -13,7 +13,8 @@ class ConfigurationBlock:
         self.base_configs = base_configs
         self.printed_settings = {}
         self.logger = None
-        self._merge_config()
+        if config is not None:
+            self._merge_config()
 
     def set_logger(self, new_logger, printed_settings=None):
         """Cleans the list of all already printed settings.
@@ -250,6 +251,12 @@ class ConfigurationBlock:
             data.update(self.configBlocks[key].flatten(prefix + key + "/"))
         return data
 
+    def clone(self):
+        config = ConfigurationBlock(None)
+        config.config = copy.deepcopy(self.config)
+        config.base_configs = [copy.deepcopy(base) for base in self.base_configs]
+        config.merged_config = copy.deepcopy(self.merged_config)
+        return config
 
 class NotFoundError(Exception):
     pass
