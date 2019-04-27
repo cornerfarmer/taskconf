@@ -27,7 +27,6 @@ class Preset:
             self.set_data(data)
         else:
             self.data = {}
-            self.name = ""
             self.uuid = ""
             self.creation_time = 0
             self.config = None
