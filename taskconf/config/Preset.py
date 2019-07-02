@@ -62,6 +62,9 @@ class Preset:
     def get_metadata(self, name):
         return self.data[name]
 
+    def path(self):
+        return self.config.path()
+
     def _build_config(self, config):
         if not self.dynamic:
             config = {"0": config}
