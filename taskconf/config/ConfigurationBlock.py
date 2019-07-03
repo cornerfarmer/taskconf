@@ -47,9 +47,6 @@ class ConfigurationBlock:
     def get_merged_config(self):
         return self.merged_config
 
-    def path(self):
-        return self._path_from_config(self.merged_config["0"])
-
     def _path_from_config(self, config, prefix=[]):
         if len(config.keys()) == 1 and type(list(config.values())[0]) == dict:
             return self._path_from_config(list(config.values())[0], prefix + [list(config.keys())[0]])
