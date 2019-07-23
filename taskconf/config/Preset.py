@@ -62,6 +62,9 @@ class Preset:
     def get_metadata(self, name):
         return self.data[name]
 
+    def has_metadata(self, name):
+        return name in self.data
+
     def path(self):
         return self.config.path()
 
