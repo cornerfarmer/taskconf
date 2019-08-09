@@ -131,3 +131,11 @@ class Configuration:
             self.save()
 
         return preset
+
+    def remove_preset(self, preset):
+        self.presets.remove(preset)
+        if preset.file is not None:
+            self.presets_by_file[preset.file].remove(preset)
+        del self.presets_by_uuid[str(preset.uuid)]
+
+        self.save()
