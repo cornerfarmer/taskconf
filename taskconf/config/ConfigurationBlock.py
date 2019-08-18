@@ -32,16 +32,29 @@ class ConfigurationBlock:
         self.merged_config = {}
 
         for base_config in self.base_configs:
-            self._deep_update(self.merged_config, base_config)
+            self._deep_update(self.merged_config, base_config[0], base_config[1:])
 
-        self._deep_update(self.merged_config, self.config)
+        self._deep_update(self.merged_config, self.config, [])
 
-    def _deep_update(self, d, u):
+    def _deep_update(self, d, u, args):
         for k, v in u.items():
             if isinstance(v, collections.Mapping):
-                d[k] = self._deep_update(d.get(k, {}), v)
+                d[k] = self._deep_update(d.get(k, {}), v, args)
             else:
                 d[k] = v
+                if type(d[k]) == str:
+                    for i in range(len(args)):
+                        is_float = False
+                        try:
+                            float(args[i])
+                            is_float = True
+                        except ValueError:
+                            pass
+                        template = "$T" + str(i) + "$"
+                        if is_float and d[k] == template:
+                            d[k] = float(args[i])
+                        else:
+                            d[k] = d[k].replace(template, args[i])
         return d
 
     def get_merged_config(self):

@@ -18,7 +18,7 @@ class Preset:
             file(str): The filename which contained the preset.
         """
         self.prefix = ""
-        self.base_presets = base_presets
+        self.base_presets = [[base_preset] if not type(base_preset) is list else base_preset for base_preset in base_presets]
         self.file = file
         self.try_number = 0
         self.iteration_cursor = 0
@@ -38,7 +38,7 @@ class Preset:
             return True
 
         for base_preset in self.base_presets:
-            if base_preset.treat_dynamic():
+            if base_preset[0].treat_dynamic():
                 return True
 
         return False
@@ -74,7 +74,7 @@ class Preset:
 
         base_configs = []
         for base_preset in self.base_presets:
-            base_configs.append(base_preset.get_merged_config(True))
+            base_configs.append([base_preset[0].get_merged_config(True)] + base_preset[1:])
         return ConfigurationBlock(config, base_configs)
 
     def get_merged_config(self, force_dynamic=False):

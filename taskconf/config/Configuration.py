@@ -80,7 +80,9 @@ class Configuration:
 
                 base_presets = []
                 for base_preset_uuid in base_preset_uuids:
-                    base_presets.append(self._load_preset_with_uuid(base_preset_uuid, children_presets + [preset_uuid]))
+                    if not type(base_preset_uuid) is list:
+                        base_preset_uuid = [base_preset_uuid]
+                    base_presets.append([self._load_preset_with_uuid(base_preset_uuid[0], children_presets + [preset_uuid])] + base_preset_uuid[1:])
             else:
                 base_presets = []
 
@@ -119,7 +121,8 @@ class Configuration:
             if not type(base_preset_uuids) is list:
                 base_preset_uuids = [base_preset_uuids]
 
-            base_presets = [self.presets_by_uuid[base] for base in base_preset_uuids]
+            base_preset_uuids = [[base_preset_uuid] if not type(base_preset_uuid) is list else base_preset_uuid for base_preset_uuid in base_preset_uuids]
+            base_presets = [[self.presets_by_uuid[base[0]]] + base[1:] for base in base_preset_uuids]
         else:
             base_presets = []
 
