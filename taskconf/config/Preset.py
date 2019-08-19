@@ -300,3 +300,8 @@ class Preset:
 
         data['config'][str(timestep)] = new_config
         self.set_data(data)
+
+    def get_merged_data(self):
+        data = copy.deepcopy(self.data)
+        data["config"] = self.get_merged_config()
+        return data
