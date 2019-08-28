@@ -100,7 +100,7 @@ class Preset:
             NotFoundError: If the configuration cannot be found in this or any base presets.
             TypeError. If the configuration value cannot be converted into an integer.
         """
-        return self.config.get_int(name, fallback, self.iteration_cursor)
+        return self.config.get_int(self.prefix + name, fallback, self.iteration_cursor)
 
     def get_string(self, name, fallback=None):
         """Returns the configuration with the given name or the fallback name as a string.
@@ -119,7 +119,7 @@ class Preset:
             NotFoundError: If the configuration cannot be found in this or any base presets.
             TypeError. If the configuration value cannot be converted into a string.
         """
-        return self.config.get_string(name, fallback, self.iteration_cursor)
+        return self.config.get_string(self.prefix + name, fallback, self.iteration_cursor)
 
     def get_float(self, name, fallback=None):
         """Returns the configuration with the given name or the fallback name as a float.
@@ -138,7 +138,7 @@ class Preset:
             NotFoundError: If the configuration cannot be found in this or any base presets.
             TypeError. If the configuration value cannot be converted into a float.
         """
-        return self.config.get_float(name, fallback, self.iteration_cursor)
+        return self.config.get_float(self.prefix + name, fallback, self.iteration_cursor)
 
     def get_bool(self, name, fallback=None):
         """Returns the configuration with the given name or the fallback name as a bool.
@@ -157,7 +157,7 @@ class Preset:
             NotFoundError: If the configuration cannot be found in this or any base presets.
             TypeError. If the configuration value cannot be converted into a bool.
         """
-        return self.config.get_bool(name, fallback, self.iteration_cursor)
+        return self.config.get_bool(self.prefix + name, fallback, self.iteration_cursor)
 
     def get_list(self, name, fallback=None):
         """Returns the configuration with the given name or the fallback name as a list.
@@ -176,7 +176,7 @@ class Preset:
             NotFoundError: If the configuration cannot be found in this or any base presets.
             TypeError. If the configuration value cannot be converted into a list.
         """
-        return self.config.get_list(name, fallback, self.iteration_cursor)
+        return self.config.get_list(self.prefix + name, fallback, self.iteration_cursor)
     
     def get_keys(self, name):
         if not self.dynamic:
