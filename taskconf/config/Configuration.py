@@ -1,144 +1,233 @@
-import glob
-import json
-import re
-
-from taskconf.config.Preset import Preset
+import copy
+import datetime
+import time
 import uuid
-import fnmatch
-import os
+
+from taskconf.config.ConfigurationBlock import ConfigurationBlock
+
 
 class Configuration:
 
-    def __init__(self, config_path=None):
-        """ Creates a new configuration.
+    def __init__(self, data=None, base_configs=[], file=None):
+        """Creates a new config.
 
         Args:
-            config_path(str): The path where the config files are stored.
+            data(dict): The raw json data of the config.
+            base_configs(Configuration): The base config object for this config.
+            file(str): The filename which contained the config.
         """
-        if config_path is None:
-            config_path = "config"
+        self.prefix = ""
+        self.base_configs = [[base_config] if not type(base_config) is list else base_config for base_config in base_configs]
+        self.file = file
+        self.try_number = 0
+        self.iteration_cursor = 0
 
-        self.config_path = config_path
-        self.presets = []
-        self.presets_by_file = {}
-        self.presets_by_uuid = {}
-        self._json_by_uuid = {}
-        self._ordered_preset = []
+        if data is not None:
+            self.set_data(data)
+        else:
+            self.data = {}
+            self.uuid = ""
+            self.creation_time = 0
+            self.config = None
+            self.abstract = False
+            self.dynamic = False
 
-        for path in self._find_recursive(config_path, "*.json"):
-            with open(path) as data_file:
-                input_str = re.sub(r'^\s*//.*\n', '\n', data_file.read(), flags=re.MULTILINE)
-                data = json.loads(input_str)
+    def set_base_configs(self, base_configs):
+        self.base_configs = [[base_config] if not type(base_config) is list else base_config for base_config in base_configs]
+        self.config = self._build_config(self.data["config"])
 
-                for preset_data in data:
+    def treat_dynamic(self):
+        if self.dynamic:
+            return True
 
-                    if not "uuid" in preset_data:
-                        preset_data["uuid"] = str(uuid.uuid4())
+        for base_config in self.base_configs:
+            if base_config[0].treat_dynamic():
+                return True
 
-                    if preset_data["uuid"] not in self._json_by_uuid:
-                        self._json_by_uuid[preset_data["uuid"]] = {"data": preset_data, "file": path[len(config_path) + 1:]}
-                        self._ordered_preset.append(preset_data["uuid"])
-                    else:
-                        raise Exception("A preset with uuid '" + preset_data["uuid"] + "' is already defined!")
+        return False
 
-        for preset_uuid in self._ordered_preset:
-            self._load_preset_with_uuid(preset_uuid)
-            self.presets.append(self.presets_by_uuid[preset_uuid])
+    def set_data(self, new_data):
+        if "uuid" not in new_data:
+            new_data["uuid"] = str(uuid.uuid4())
+        if "creation_time" not in new_data:
+            new_data["creation_time"] = time.mktime(datetime.datetime.now().timetuple())
 
-        print("Loaded " + str(len(self.presets)) + " presets.")
+        self.data = new_data
+        self.uuid = new_data["uuid"]
+        self.creation_time = datetime.datetime.fromtimestamp(new_data["creation_time"])
+        self.abstract = "abstract" in new_data and bool(new_data["abstract"])
+        self.dynamic = "dynamic" in new_data and bool(new_data["dynamic"])
+        self.config = self._build_config(new_data["config"])
 
-    def _find_recursive(self, dir, file_ending):
-        matches = []
-        for root, dirnames, filenames in os.walk(dir):
-            for filename in fnmatch.filter(filenames, file_ending):
-                matches.append(os.path.join(root, filename))
-        return matches
+    def set_metadata(self, name, value):
+        self.data[name] = value
 
-    def _load_preset_with_uuid(self, preset_uuid, children_presets=[]):
-        """Loads the preset with the given uuid and all its base presets.
+    def get_metadata(self, name):
+        return self.data[name]
+
+    def has_metadata(self, name):
+        return name in self.data
+
+    def path(self):
+        return self.config.path()
+
+    def _build_config(self, config):
+        if not self.dynamic:
+            config = {"0": config}
+
+        base_configs = []
+        for base_config in self.base_configs:
+            base_configs.append([base_config[0].get_merged_config(True)] + base_config[1:])
+        return ConfigurationBlock(config, base_configs)
+
+    def get_merged_config(self, force_dynamic=False):
+        config = self.config.get_merged_config()
+        if not force_dynamic and not self.treat_dynamic():
+            config = config["0"]
+        return config
+
+    def get_int(self, name, fallback=None):
+        """Returns the configuration with the given name or the fallback name as an integer.
+
+        If the configuration cannot be found in this config, the request will use the base config as fallback.
+        If there is no configuration with the given name, the fallback configuration will be used.
 
         Args:
-            preset_uuid (str): The uuid of the preset.
-            children_presets (list): A list of child presets. This will be used to make sure there are no cycles in the inheritance graph..
+            name(str): The name of the configuration.
+            fallback(str): The name of the fallback configuration, which should be used if the primary one cannot be found.
 
         Returns:
-            Preset: The loaded preset
+            int: The integer value of the configuration.
+
+        Raises:
+            NotFoundError: If the configuration cannot be found in this or any base configs.
+            TypeError. If the configuration value cannot be converted into an integer.
         """
-        if not preset_uuid in self._json_by_uuid:
-            raise Exception("There is no preset with uuid '" + preset_uuid + "'!")
+        return self.config.get_int(name, fallback, self.iteration_cursor)
 
-        if preset_uuid in children_presets:
-            raise Exception("There is a cycle in the presets inheritance!")
+    def get_string(self, name, fallback=None):
+        """Returns the configuration with the given name or the fallback name as a string.
 
-        if preset_uuid not in self.presets_by_uuid:
-            preset_data = self._json_by_uuid[preset_uuid]["data"]
+        If the configuration cannot be found in this config, the request will use the base config as fallback.
+        If there is no configuration with the given name, the fallback configuration will be used.
 
-            if "base" in preset_data:
-                base_preset_uuids = preset_data["base"]
-                if not type(base_preset_uuids) is list:
-                    base_preset_uuids = [base_preset_uuids]
+        Args:
+            name(str): The name of the configuration.
+            fallback(str): The name of the fallback configuration, which should be used if the primary one cannot be found.
 
-                base_presets = []
-                for base_preset_uuid in base_preset_uuids:
-                    if not type(base_preset_uuid) is list:
-                        base_preset_uuid = [base_preset_uuid]
-                    base_presets.append([self._load_preset_with_uuid(base_preset_uuid[0], children_presets + [preset_uuid])] + base_preset_uuid[1:])
-            else:
-                base_presets = []
+        Returns:
+            str: The string value of the configuration.
 
-            self.create_preset(preset_data, base_presets, self._json_by_uuid[preset_uuid]["file"])
+        Raises:
+            NotFoundError: If the configuration cannot be found in this or any base configs.
+            TypeError. If the configuration value cannot be converted into a string.
+        """
+        return self.config.get_string(name, fallback, self.iteration_cursor)
 
-        return self.presets_by_uuid[preset_uuid]
+    def get_float(self, name, fallback=None):
+        """Returns the configuration with the given name or the fallback name as a float.
 
-    def create_preset(self, preset_data, base_presets, file):
-        preset = Preset(preset_data, base_presets, file)
+        If the configuration cannot be found in this config, the request will use the base config as fallback.
+        If there is no configuration with the given name, the fallback configuration will be used.
 
-        if preset.file is not None:
-            if preset.file not in self.presets_by_file:
-                self.presets_by_file[preset.file] = []
-            self.presets_by_file[preset.file].append(preset)
+        Args:
+            name(str): The name of the configuration.
+            fallback(str): The name of the fallback configuration, which should be used if the primary one cannot be found.
 
-            self.presets_by_uuid[preset.uuid] = preset
-        return preset
+        Returns:
+            float: The float value of the configuration.
 
-    def save_to_file(self, filename, presets):
-        data = []
-        for preset in presets:
-            data.append(preset.data)
+        Raises:
+            NotFoundError: If the configuration cannot be found in this or any base configs.
+            TypeError. If the configuration value cannot be converted into a float.
+        """
+        return self.config.get_float(name, fallback, self.iteration_cursor)
 
-        if len(data) > 0 and len(filename) > 0:
-            with open(self.config_path + "/" + filename, 'w+') as data_file:
-                json.dump(data, data_file, indent=2, separators=(',', ': '), sort_keys=True)
+    def get_bool(self, name, fallback=None):
+        """Returns the configuration with the given name or the fallback name as a bool.
 
-    def save(self):
-        for filename in self.presets_by_file.keys():
-            if filename is not None:
-                self.save_to_file(filename, self.presets_by_file[filename])
+        If the configuration cannot be found in this config, the request will use the base config as fallback.
+        If there is no configuration with the given name, the fallback configuration will be used.
 
-    def add_preset(self, preset_data, file, metadata={}):
-        if "base" in preset_data:
-            base_preset_uuids = preset_data["base"]
-            if not type(base_preset_uuids) is list:
-                base_preset_uuids = [base_preset_uuids]
+        Args:
+            name(str): The name of the configuration.
+            fallback(str): The name of the fallback configuration, which should be used if the primary one cannot be found.
 
-            base_preset_uuids = [[base_preset_uuid] if not type(base_preset_uuid) is list else base_preset_uuid for base_preset_uuid in base_preset_uuids]
-            base_presets = [[self.presets_by_uuid[base[0]]] + base[1:] for base in base_preset_uuids]
+        Returns:
+            bool: The bool value of the configuration.
+
+        Raises:
+            NotFoundError: If the configuration cannot be found in this or any base configs.
+            TypeError. If the configuration value cannot be converted into a bool.
+        """
+        return self.config.get_bool(name, fallback, self.iteration_cursor)
+
+    def get_list(self, name, fallback=None):
+        """Returns the configuration with the given name or the fallback name as a list.
+
+        If the configuration cannot be found in this config, the request will use the base config as fallback.
+        If there is no configuration with the given name, the fallback configuration will be used.
+
+        Args:
+            name(str): The name of the configuration.
+            fallback(str): The name of the fallback configuration, which should be used if the primary one cannot be found.
+
+        Returns:
+            list: The list value of the configuration.
+
+        Raises:
+            NotFoundError: If the configuration cannot be found in this or any base configs.
+            TypeError. If the configuration value cannot be converted into a list.
+        """
+        return self.config.get_list(name, fallback, self.iteration_cursor)
+    
+    def get_keys(self, name):
+        if not self.dynamic:
+            name = "0/" + name
+        return self.config.get_keys(name)
+
+    def get_with_prefix(self, prefix):
+        """Clones this config and adds an additional prefix.
+
+        Args:
+            prefix(str): The additional prefix.
+
+        Returns:
+            Configuration: The new config with the requested prefix.
+        """
+        config = self.clone(deep=False)
+        config.prefix = self.prefix + prefix + "/"
+        return config
+
+    def clone(self, deep=True):
+        config = Configuration(base_configs=self.base_configs)
+        if deep:
+            config.config = self.config.clone()
+            config.data = copy.deepcopy(self.data)
         else:
-            base_presets = []
+            config.config = self.config
+            config.data = self.data
+        config.prefix = self.prefix
+        config.file = self.file
+        config.try_number = self.try_number
+        config.uuid = self.uuid
+        config.creation_time = self.creation_time
+        config.iteration_cursor = self.iteration_cursor
+        config.dynamic = self.dynamic
+        return config
 
-        preset = self.create_preset(preset_data, base_presets, file)
-        for key in metadata:
-            preset.set_metadata(key, metadata[key])
-        if file is not None:
-            self.presets.append(preset)
-            self.save()
+    def set_logger(self, new_logger, printed_settings=None):
+        """Cleans the list of all already printed settings.
 
-        return preset
+        After calling this, the configuration log will start from scratch again.
 
-    def remove_preset(self, preset):
-        self.presets.remove(preset)
-        if preset.file is not None:
-            self.presets_by_file[preset.file].remove(preset)
-        del self.presets_by_uuid[str(preset.uuid)]
+        Args:
+            new_logger: A new logger which should be used for future logging.
+            printed_settings:
+        """
+        self.config.set_logger(new_logger, printed_settings)
 
-        self.save()
+    def get_merged_data(self):
+        data = copy.deepcopy(self.data)
+        data["config"] = self.get_merged_config()
+        return data

@@ -95,7 +95,7 @@ class ConfigurationBlock:
     def _get_value(self, name, current_timestep):
         """Returns the configuration with the given name and the given type.
 
-        If the configuration cannot be found in this preset, the request will use the base preset as fallback.
+        If the configuration cannot be found in this config, the request will use the base config as fallback.
 
         Args:
             name(str): The name of the configuration.
@@ -105,7 +105,7 @@ class ConfigurationBlock:
             object: The value of the configuration in the requested type.
 
         Raises:
-            NotFoundError: If the configuration cannot be found in this or any base presets.
+            NotFoundError: If the configuration cannot be found in this or any base configs.
             TypeError. If the configuration value cannot be converted into the requested type.
         """
         for timestep in self.valid_timesteps(current_timestep):
@@ -120,7 +120,7 @@ class ConfigurationBlock:
     def _get_value_with_fallback(self, name, fallback, current_timestep):
         """Returns the configuration with the given name or the fallback name and the given type.
 
-        If the configuration cannot be found in this preset, the request will use the base preset as fallback.
+        If the configuration cannot be found in this config, the request will use the base config as fallback.
         If there is no configuration with the given name, the fallback configuration will be used.
 
         Args:
@@ -132,7 +132,7 @@ class ConfigurationBlock:
             object: The value of the configuration in the requested type.
 
         Raises:
-            NotFoundError: If the configuration cannot be found in this or any base presets.
+            NotFoundError: If the configuration cannot be found in this or any base configs.
             TypeError. If the configuration value cannot be converted into the requested type.
         """
 
