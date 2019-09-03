@@ -1,5 +1,6 @@
 import copy
 import collections
+import json
 
 class ConfigurationBlock:
 
@@ -44,15 +45,14 @@ class ConfigurationBlock:
                 d[k] = v
                 if type(d[k]) == str:
                     for i in range(len(args)):
-                        is_float = False
-                        try:
-                            float(args[i])
-                            is_float = True
-                        except ValueError:
-                            pass
                         template = "$T" + str(i) + "$"
-                        if is_float and d[k] == template:
-                            d[k] = float(args[i])
+                        try:
+                            json_value = json.loads(args[i])
+                        except ValueError:
+                            json_value = None
+
+                        if d[k] == template and json_value is not None:
+                            d[k] = json_value
                         else:
                             d[k] = d[k].replace(template, args[i])
         return d
