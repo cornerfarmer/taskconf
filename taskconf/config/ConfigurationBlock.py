@@ -47,7 +47,7 @@ class ConfigurationBlock:
                     for i in range(len(args)):
                         template = "$T" + str(i) + "$"
                         try:
-                            json_value = json.loads(args[i])
+                            json_value = json.loads(str(args[i]))
                         except ValueError:
                             json_value = None
 
