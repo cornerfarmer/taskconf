@@ -4,6 +4,7 @@ import time
 import uuid
 
 from taskconf.config.ConfigurationBlock import ConfigurationBlock
+import collections
 
 
 class Configuration:
@@ -58,6 +59,18 @@ class Configuration:
         self.abstract = "abstract" in new_data and bool(new_data["abstract"])
         self.dynamic = "dynamic" in new_data and bool(new_data["dynamic"])
         self.config = self._build_config(new_data["config"])
+
+    def update_config(self, config):
+        self.data["config"] = self._deep_update(self.data["config"], config)
+        self.set_data(self.data)
+
+    def _deep_update(self, d, u):
+        for k, v in u.items():
+            if isinstance(v, collections.Mapping):
+                d[k] = self._deep_update(d.get(k, {}), v)
+            else:
+                d[k] = v
+        return d
 
     def set_metadata(self, name, value):
         self.data[name] = value
