@@ -122,7 +122,13 @@ class ConfigurationManager:
                 base_config_uuids = [base_config_uuids]
 
             base_config_uuids = [[base_config_uuid] if not type(base_config_uuid) is list else base_config_uuid for base_config_uuid in base_config_uuids]
-            base_configs = [[self.configs_by_uuid[base[0]]] + base[1:] for base in base_config_uuids]
+
+            base_configs = []
+            for base in base_config_uuids:
+                if base[0] in self.configs_by_uuid:
+                    base_configs.append([self.configs_by_uuid[base[0]]] + base[1:])
+                else:
+                    print("Missing base config: " + base[0])
         else:
             base_configs = []
 
