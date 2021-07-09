@@ -18,7 +18,7 @@ class Configuration:
             file(str): The filename which contained the config.
         """
         self.prefix = ""
-        self.base_configs = [[base_config] if not type(base_config) is list else base_config for base_config in base_configs]
+        self.base_configs = base_configs#[[base_config] if not type(base_config) is list else base_config for base_config in base_configs]
         self.file = file
         self.try_number = 0
         self.iteration_cursor = 0
@@ -36,14 +36,16 @@ class Configuration:
     def set_base_configs(self, base_configs):
         self.base_configs = [[base_config] if not type(base_config) is list else base_config for base_config in base_configs]
         self.config = self._build_config(self.data["config"])
+        self.dynamic = len(self.config.get_merged_config()) > 1
 
     def treat_dynamic(self):
         if self.dynamic:
             return True
 
-        for base_config in self.base_configs:
-            if base_config[0].treat_dynamic():
-                return True
+        for iteration in self.base_configs:
+            for base_config in self.base_configs[iteration]:
+                if base_config[0].treat_dynamic():
+                    return True
 
         return False
 
@@ -59,6 +61,7 @@ class Configuration:
         self.abstract = "abstract" in new_data and bool(new_data["abstract"])
         self.dynamic = "dynamic" in new_data and bool(new_data["dynamic"])
         self.config = self._build_config(new_data["config"])
+        self.dynamic = len(self.config.get_merged_config()) > 1
 
     def update_config(self, config):
         self.data["config"] = self._deep_update(self.data["config"], config)
@@ -89,8 +92,9 @@ class Configuration:
             config = {"0": config}
 
         base_configs = []
-        for base_config in self.base_configs:
-            base_configs.append([base_config[0].get_merged_config(True)] + base_config[1:])
+        for iteration in self.base_configs:
+            for base_config in self.base_configs[iteration]:
+                base_configs.append([{iteration: base_config[0].get_merged_config(True)["0"]}] + base_config[1:])
         return ConfigurationBlock(config, base_configs)
 
     def get_merged_config(self, force_dynamic=False):

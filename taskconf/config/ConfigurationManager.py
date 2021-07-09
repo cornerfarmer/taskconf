@@ -117,20 +117,23 @@ class ConfigurationManager:
 
     def add_config(self, config_data, file, metadata={}):
         if "base" in config_data:
+            #base_config_uuids = config_data["base"]["0"]
+            #if not type(base_config_uuids) is list:
+            #    base_config_uuids = [base_config_uuids]
+
+            #base_config_uuids = [[base_config_uuid] if not type(base_config_uuid) is list else base_config_uuid for base_config_uuid in base_config_uuids]
             base_config_uuids = config_data["base"]
-            if not type(base_config_uuids) is list:
-                base_config_uuids = [base_config_uuids]
 
-            base_config_uuids = [[base_config_uuid] if not type(base_config_uuid) is list else base_config_uuid for base_config_uuid in base_config_uuids]
-
-            base_configs = []
-            for base in base_config_uuids:
-                if base[0] in self.configs_by_uuid:
-                    base_configs.append([self.configs_by_uuid[base[0]]] + base[1:])
-                else:
-                    print("Missing base config: " + base[0])
+            base_configs = {}
+            for iteration in base_config_uuids:
+                base_configs[iteration] = []
+                for base in base_config_uuids[iteration]:
+                    if base[0] in self.configs_by_uuid:
+                        base_configs[iteration].append([self.configs_by_uuid[base[0]]] + base[1:])
+                    else:
+                        print("Missing base config: " + base[0])
         else:
-            base_configs = []
+            base_configs = {}
 
         config = self.create_config(config_data, base_configs, file)
         for key in metadata:
