@@ -242,6 +242,21 @@ class ConfigurationBlock:
             raise TypeError("Cannot convert '" + str(value) + "' to list!")
         return value
 
+    def get_value(self, name, fallback=None, current_timestep=0):
+        """Returns the value of the configuration with the given name as list.
+
+        Args:
+            name(str): The name of the configuration.
+
+        Returns:
+            list: The list value of the configuration.
+
+        Raises:
+            TypeError: If the value could not be converted to a string.
+        """
+        value = self._get_value_with_fallback(name, fallback, current_timestep)
+        return value
+
     def get_keys(self, name):
         return self._get_keys(name, self.merged_config)
 

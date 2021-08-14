@@ -197,6 +197,9 @@ class Configuration:
             TypeError. If the configuration value cannot be converted into a list.
         """
         return self.config.get_list(self.prefix + name, fallback, self.iteration_cursor)
+
+    def get_value(self, name, fallback=None):
+        return self.config.get_value(self.prefix + name, fallback, self.iteration_cursor)
     
     def get_keys(self, name):
         if not self.dynamic:
