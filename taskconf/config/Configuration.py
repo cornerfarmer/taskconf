@@ -34,7 +34,9 @@ class Configuration:
             self.dynamic = False
 
     def set_base_configs(self, base_configs):
-        self.base_configs = [[base_config] if not type(base_config) is list else base_config for base_config in base_configs]
+        self.base_configs = {}
+        for iteration in base_configs:
+            self.base_configs[iteration] = [[base_config] if not type(base_config) is list else base_config for base_config in base_configs[iteration]]
         self.config = self._build_config(self.data["config"])
         self.dynamic = len(self.config.get_merged_config()) > 1
 
