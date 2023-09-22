@@ -123,6 +123,8 @@ class ConfigurationManager:
 
             #base_config_uuids = [[base_config_uuid] if not type(base_config_uuid) is list else base_config_uuid for base_config_uuid in base_config_uuids]
             base_config_uuids = config_data["base"]
+            if isinstance(base_config_uuids, list):
+                base_config_uuids = {"0": base_config_uuids}
 
             base_configs = {}
             for iteration in base_config_uuids:
